@@ -24,7 +24,7 @@ jobs:
       - name: Load portfolio
         uses: actions/checkout@v4
         with:
-          repository: olehhebel/ai-superprompt-studio
+          repository: olehhebel/olehhebel.top
           ref: index.html
           path: sources/portfolio
           persist-credentials: false
