@@ -20,6 +20,7 @@ Each completed run has a summary plus an ecosystem-report artifact (JSON and Mar
 Findings are review candidates, not proof of broken behavior.
 An HTTP 200 is not a successful form-delivery test.
 Live checks cover the homepage, robots and sitemap; source checks cover all checked-out HTML.
+Live endpoint failures, unexpected hosts, missing robots sitemap directives and invalid regular sitemaps now fail the workflow. Reports are retained even when the audit fails. Duplicate or non-HTTPS sitemap URLs are checked. Source review suggestions remain advisory.
 The audit does not crawl every live page, verify indexing, test JavaScript, send forms, edit code or deploy repairs.
 The audit's parser, sitemap processing, report generation and timeout handling were checked locally.
 The first hosted execution must be inspected in Actions before calling the deployment verified.

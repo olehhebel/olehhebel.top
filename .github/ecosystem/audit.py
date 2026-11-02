@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import json
+import sys
 from pathlib import Path
 from html.parser import HTMLParser
 from urllib.parse import urlparse
@@ -83,7 +84,14 @@ def run(registry, sources, output):
                     entry["issues"] = inspect_html(body, domain)
                 elif resource == "/sitemap.xml":
                     tree = ElementTree.fromstring(body)
-                    entry["urls"] = len(tree.findall(".//{*}loc"))
+                    urls = [n.text.strip() for n in tree.findall("{*}url/{*}loc") if n.text]
+                    entry["urls"] = len(urls)
+                    sitemap_issues = []
+                    if len(urls) != len(set(urls)): sitemap_issues.append("duplicate URLs")
+                    if any(urlparse(u).hostname != domain or urlparse(u).scheme != "https" for u in urls):
+                        sitemap_issues.append("non-canonical sitemap URLs")
+                    if tree.tag.split("}")[-1] == "urlset" and not urls: sitemap_issues.append("empty regular sitemap")
+                    if sitemap_issues: entry["error"] = "; ".join(sitemap_issues)
                     if tree.tag.split("}")[-1] not in ("urlset", "sitemapindex"):
                         entry["error"] = "Not a sitemap"
                 else:
@@ -97,6 +105,10 @@ def run(registry, sources, output):
     output.mkdir(parents=True, exist_ok=True)
     report = {"generated_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
               "mode": "read-only audit; no AI runtime; no automatic repairs", "projects": results}
+    failures = [entry for project in results for entry in project["live"]
+                if entry.get("error") or entry.get("redirect_review") or
+                (entry["url"].endswith("/robots.txt") and not entry.get("has_sitemap_directive"))]
+    report["live_failure_count"] = len(failures)
     (output / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
     lines = ["# Ecosystem audit", "", report["generated_utc"], "", report["mode"], ""]
     for item in results:
@@ -107,6 +119,9 @@ def run(registry, sources, output):
             lines.append("- " + live["url"] + ": " + str(live.get("status", live.get("error", "unknown"))))
         lines += ["", "See report.json for every page and live check.", ""]
     (output / "report.md").write_text("\n".join(lines), encoding="utf-8")
+    # Source review suggestions (such as missing translations) remain advisory.
+    # A failed public endpoint or malformed regular sitemap must make CI visible as failed.
+    return len(failures)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -114,4 +129,4 @@ if __name__ == "__main__":
     parser.add_argument("--sources", default="sources")
     parser.add_argument("--output", default="ecosystem-report")
     args = parser.parse_args()
-    run(json.loads(Path(args.registry).read_text()), Path(args.sources), Path(args.output))
+    sys.exit(1 if run(json.loads(Path(args.registry).read_text()), Path(args.sources), Path(args.output)) else 0)

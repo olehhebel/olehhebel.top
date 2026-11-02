@@ -45,8 +45,10 @@ jobs:
       - name: Audit all projects
         run: python3 .github/ecosystem/audit.py
       - name: Publish run summary
+        if: always()
         run: cat ecosystem-report/report.md >> "$GITHUB_STEP_SUMMARY"
       - name: Save complete report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ecosystem-report
