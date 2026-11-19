@@ -3,7 +3,10 @@ Run after build-locales.py. Idempotent; does not generate performance claims.
 """
 from pathlib import Path
 from bs4 import BeautifulSoup
-import json,re
+import json
+import xml.etree.ElementTree as ET
+from urllib.parse import urlsplit
+import re
 ROOT=Path(__file__).resolve().parents[1]
 DOMAIN='https://olehhebel.top'
 COPY={
@@ -25,6 +28,51 @@ SERVICE_SECTIONS={
 ('Як почати співпрацю','Надішли працюючий продукт, Figma або короткий опис задачі. Я розберу основний сценарій користувача, уточню обмеження й запропоную конкретний обсяг. Оцінку вартості готую під нього.'),
 ('Хочеш навчитися створювати й покращувати сайт самостійно?','Ship Index Grow — окремий практичний освітній проєкт про створення сайтів за допомогою AI, публікацію контенту та основи SEO. Для навчання переходь до школи, а для виконання дизайнерської роботи звертайся до Oleh Hebel & Co.')]
 }
+
+def add_page_directory(soup, ukrainian):
+    """Build the homepage directory from the public, canonical sitemap routes."""
+    labels = (
+        ('Послуги та портфоліо', 'Проєкти', 'Статті', 'Інструменти', 'Дослідження')
+        if ukrainian else ('Services and portfolio', 'Projects', 'Articles', 'Tools', 'Research')
+    )
+    groups = {name: [] for name in labels}
+    for loc in ET.parse(ROOT / 'sitemap.xml').findall('.//{*}loc'):
+        path = urlsplit(loc.text).path
+        if path.startswith('/uk/') != ukrainian or path in ('/', '/uk/'):
+            continue
+        relative = path.lstrip('/')
+        page = ROOT / (relative if relative.endswith('.html') else relative + '.html')
+        document = BeautifulSoup(page.read_text(), 'html.parser')
+        title = document.title.get_text(strip=True).split(' | ')[0]
+        section = relative.removeprefix('uk/').split('/')[0]
+        group = {'projects': 1, 'insights': 2, 'tools': 3, 'research': 4}.get(section, 0)
+        groups[labels[group]].append((title, path))
+
+    previous = soup.select_one('.page-directory')
+    if previous:
+        previous.decompose()
+    directory = soup.new_tag('details', attrs={'class': 'page-directory'})
+    summary = soup.new_tag('summary')
+    summary.string = 'Карта сайту' if ukrainian else 'Site directory'
+    directory.append(summary)
+    nav = soup.new_tag('nav', attrs={'aria-label': summary.string})
+    directory.append(nav)
+    for heading, pages in groups.items():
+        section = soup.new_tag('section')
+        title = soup.new_tag('h3')
+        title.string = heading
+        section.append(title)
+        listing = soup.new_tag('ul')
+        for label, path in sorted(pages):
+            item = soup.new_tag('li')
+            link = soup.new_tag('a', href=path)
+            link.string = label
+            item.append(link)
+            listing.append(item)
+        section.append(listing)
+        nav.append(section)
+    soup.select_one('.footer-copyright').insert_before(directory)
+
 count=0
 for p in sorted(ROOT.rglob('*.html')):
  rel=p.relative_to(ROOT)
@@ -60,6 +108,7 @@ for p in sorted(ROOT.rglob('*.html')):
  for n in s.select('meta[property="og:image"],meta[name="twitter:image"]'):
   n['content']=DOMAIN+'/og-image.jpg'
  if key in ['index','uk/index']:
+  add_page_directory(s, uk)
   h=s.h1;eye=h.select_one('.eyebrow')
   if eye:eye.name='p';h.insert_before(eye.extract())
   h.select_one('.hero-title').clear();h.select_one('.hero-title').append(BeautifulSoup('Продуктовий дизайн.<br/>Який обирають.' if uk else 'Product design.<br/>Worth choosing.','html.parser'))

@@ -124,3 +124,11 @@
     font-size: 12px;
   }
 }
+
+.site-footer .page-directory { grid-column: 1 / -1; margin: 1rem 0; }
+.page-directory summary { cursor: pointer; width: fit-content; padding: .5rem 0; }
+.page-directory nav { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); margin: 1rem 0; }
+.page-directory h3 { font-size: 1rem; }
+.page-directory ul { padding-inline-start: 1.2rem; }
+.page-directory li { margin-block: .4rem; }
+.page-directory a { color: inherit; text-decoration: underline; }
