@@ -21,6 +21,13 @@
       requestAnimationFrame(() => form.querySelector('#brief-email').focus({preventScroll:true}));
     });
   });
+  if (location.hash === '#project-inquiry') {
+    const inquiryButton = document.getElementById('project-inquiry');
+    if (inquiryButton) {
+      inquiryButton.dataset.source = 'service-project-inquiry';
+      inquiryButton.click();
+    }
+  }
   close.addEventListener('click', dismiss);
   done.addEventListener('click', dismiss);
   dialog.addEventListener('cancel', event => { event.preventDefault(); dismiss(); });
